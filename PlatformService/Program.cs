@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PlatformService.Data;
+using PlatformService.SyncDataServices.Http;
 using PlatfromService.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +19,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseInMemoryDatabase("InMem");
 });
 
+builder.Services.AddHttpClient<ICommandDataClient, HttpCommandDataClient>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -31,6 +33,9 @@ app.UseHttpsRedirection();
 
 app.MapControllers(); // ✅ map routes to controllers
 
+Console.WriteLine($"-->CommandService Endpoint {builder.Configuration["CommandService"]}");
+
+// Seed the database
 PrepDb.PrepPopulation(app);
 
 app.Run();

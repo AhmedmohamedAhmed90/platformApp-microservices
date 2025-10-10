@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PlatformService.Data;
 using PlatformService.Dtos;
 using PlatformService.Models;
+using PlatformService.SyncDataServices.Http;
 
 namespace PlatformService.Controllers;
 
@@ -12,14 +13,18 @@ public class PlatformsController : ControllerBase
 {
     private readonly IPlatformRepo _repository;
     private readonly IMapper _mapper;
-    public PlatformsController(IPlatformRepo repository, IMapper mapper)
+
+    private readonly ICommandDataClient _commandDataClient;
+
+    public PlatformsController(IPlatformRepo repository, IMapper mapper, ICommandDataClient commandDataClient)
     {
         _repository = repository;
         _mapper = mapper;
+        _commandDataClient = commandDataClient;
     }
 
 
-[HttpGet]
+    [HttpGet]
     public ActionResult<IEnumerable<PlatformReadDto>> GetPlatforms()
     {
         Console.WriteLine("--> Getting Platforms....");
@@ -39,13 +44,24 @@ public class PlatformsController : ControllerBase
     }
 
     [HttpPost("create", Name = "CreatePlatform")]
-    public IActionResult CreatePlatfrorm(PlatformCreateDto platformCreateDto)
+    public async Task<IActionResult> CreatePlatfrorm(PlatformCreateDto platformCreateDto)
     {
+        var platformModel = _mapper.Map<Platform>(platformCreateDto);
 
-        _repository.CreatePlatform(_mapper.Map<Platform>(platformCreateDto));
+        _repository.CreatePlatform(platformModel);
         bool created = _repository.SaveChanges();
         if (created)
         {
+            try
+            {
+                var platformReadDto = _mapper.Map<PlatformReadDto>(platformModel);
+               await _commandDataClient.SendPlatformToCommand(platformReadDto);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"--> Could not send synchronously: {ex.Message}");
+ }
+
             return Ok(platformCreateDto);
         }
         return BadRequest(new { message = "Failed to create platform" });
