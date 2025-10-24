@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PlatformService.AsyncDataServices;
 using PlatformService.Data;
+using PlatformService.SyncDataServices.Grpc;
 using PlatformService.SyncDataServices.Http;
 using PlatfromService.Data;
 
@@ -10,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers(); //  moved here
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddGrpc();
 builder.Services.AddScoped<IPlatformRepo, PlatformRepo>();
 builder.Services.AddSingleton<IMessageBusClient, MessageBusClient>();
 
@@ -42,7 +44,22 @@ if (app.Environment.IsDevelopment())
 }
 app.UseHttpsRedirection();
 
+//just for testing 
+
+// app.UseCors(allowAnyOrigin =>
+// {
+//     allowAnyOrigin
+//         .AllowAnyOrigin()
+//         .AllowAnyMethod()
+//         .AllowAnyHeader();
+// });
+
 app.MapControllers(); //  map routes to controllers
+app.MapGrpcService<GrpcPlatformService>();
+app.MapGet("/Protos/Platforms.proto", async context =>
+{
+    await context.Response.WriteAsync(File.ReadAllText("Protos/Platforms.proto"));
+});
 
 Console.WriteLine($"-->CommandService Endpoint {builder.Configuration["CommandService"]}");
 

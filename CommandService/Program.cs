@@ -2,9 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using CommandService.Data;
 using CommandService.EventProcessing;
 using CommandService.AsyncDataServices;
+using CommandService.SyncDataServices.Grpc;
 // using CommandService.SyncDataServices.Http;
 
 var builder = WebApplication.CreateBuilder(args);
+
+AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true); // 👈 add this line
+
 // Add services to the container.
 builder.Services.AddControllers(); //  moved here
 builder.Services.AddEndpointsApiExplorer();
@@ -15,7 +19,7 @@ builder.Services.AddSingleton<IEventProcessor, EventProcessor>();
 builder.Services.AddHostedService<MessageBusSubscriber>();
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-
+builder.Services.AddScoped<IPlatformDataClient, PlatformDataClient>();
 
 // builder.Services.AddHttpClient<ICommandDataClient, HttpCommandDataClient>();
 
@@ -28,6 +32,12 @@ if (builder.Environment.IsDevelopment())
 }
 else
 {
+
+  Console.WriteLine("--> Using InMemory DB");
+    builder.Services.AddDbContext<AppDbContext>(opt =>
+        opt.UseInMemoryDatabase("InMem"));
+
+
     // Console.WriteLine("--> Using SQL Server DB");
     // builder.Services.AddDbContext<AppDbContext>(opt =>
     //     opt.UseSqlServer(builder.Configuration.GetConnectionString("PlatformsConn")));
@@ -43,5 +53,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.MapControllers();                   // expose controller routes
+
+PrepDb.PrepPopulation(app);
 
 app.Run();
